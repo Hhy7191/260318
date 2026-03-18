@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Boardgame Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --card-glass: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            font-family: 'Montserrat', sans-serif;
+            color: #f8fafc;
+            overflow: hidden;
+        }
+
+        .glass-panel {
+            background: var(--card-glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .bill-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .bill-card:active {
+            transform: translateY(4px);
+        }
+
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .ledger-item {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .glow-green {
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-md h-[90vh] flex flex-col space-y-4">
+        
+        <!-- Header & Main Balance -->
+        <div class="glass-panel rounded-[2rem] p-8 text-center relative overflow-hidden glow-green">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50"></div>
+            
+            <p class="text-[10px] uppercase tracking-[0.4em] font-semibold text-emerald-400 mb-2">Total Treasury Assets</p>
+            <div class="flex items-center justify-center space-x-2">
+                <span class="text-3xl font-light text-emerald-500">$</span>
+                <h1 id="total-balance" class="text-6xl font-extrabold tracking-tighter mono">30</h1>
+            </div>
+        </div>
+
+        <!-- Bill Denominations (Units) -->
+        <div class="grid grid-cols-3 gap-3">
+            <!-- 100s -->
+            <div class="glass-panel rounded-2xl p-4 border-b-4 border-emerald-500/50 text-center">
+                <span class="block text-[10px] font-bold text-emerald-400/70 mb-1">HUNDREDS</span>
+                <span class="block text-xs font-semibold opacity-40 mb-2">$100</span>
+                <span id="count-100" class="text-3xl font-bold mono">0</span>
+            </div>
+            <!-- 10s -->
+            <div class="glass-panel rounded-2xl p-4 border-b-4 border-blue-500/50 text-center">
+                <span class="block text-[10px] font-bold text-blue-400/70 mb-1">TENS</span>
+                <span class="block text-xs font-semibold opacity-40 mb-2">$10</span>
+                <span id="count-10" class="text-3xl font-bold mono">3</span>
+            </div>
+            <!-- 1s -->
+            <div class="glass-panel rounded-2xl p-4 border-b-4 border-amber-500/50 text-center">
+                <span class="block text-[10px] font-bold text-amber-400/70 mb-1">ONES</span>
+                <span class="block text-xs font-semibold opacity-40 mb-2">$1</span>
+                <span id="count-1" class="text-3xl font-bold mono">0</span>
+            </div>
+        </div>
+
+        <!-- Controls Area -->
+        <div class="glass-panel rounded-3xl p-6 space-y-4">
+            <div class="relative group">
+                <input type="number" id="amount-input" placeholder="0" 
+                    class="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 text-3xl font-bold mono text-center focus:outline-none focus:border-emerald-500/50 focus:bg-white/10 transition-all"
+                    inputmode="numeric">
+                <div class="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-500/50 font-bold">$</div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="updateBalance(true)" 
+                    class="bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl py-5 font-bold text-lg shadow-lg shadow-emerald-900/20 active:scale-95 transition-transform flex flex-col items-center">
+                    <span>SELL</span>
+                    <span class="text-[9px] font-normal opacity-70 tracking-widest">+ DEPOSIT</span>
+                </button>
+                <button onclick="updateBalance(false)" 
+                    class="bg-slate-700 hover:bg-slate-600 text-white rounded-2xl py-5 font-bold text-lg shadow-lg shadow-black/20 active:scale-95 transition-transform flex flex-col items-center">
+                    <span>BUY</span>
+                    <span class="text-[9px] font-normal opacity-70 tracking-widest">- WITHDRAW</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Ledger (History) -->
+        <div class="flex-1 glass-panel rounded-t-[2.5rem] p-6 overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Transaction Ledger</h2>
+                <button onclick="resetLedger()" class="text-[9px] text-slate-500 hover:text-white underline uppercase">Clear</button>
+            </div>
+            <div id="log-container" class="space-y-3 overflow-y-auto flex-1 pr-2">
+                <div class="text-center py-10 text-slate-600 text-xs italic">Awaiting first transaction...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-full font-bold shadow-2xl opacity-0 pointer-events-none transition-all duration-300">
+        Insufficient Funds
+    </div>
+
+    <script>
+        let balance = 30;
+        const totalDisplay = document.getElementById('total-balance');
+        const inputField = document.getElementById('amount-input');
+        const logContainer = document.getElementById('log-container');
+        const toast = document.getElementById('toast');
+
+        function showToast(msg) {
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0', 'translate-y-4');
+            toast.classList.add('opacity-100', '-translate-y-2');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4');
+                toast.classList.remove('opacity-100', '-translate-y-2');
+            }, 2000);
+        }
+
+        function updateBills() {
+            let temp = balance;
+            const h = Math.floor(temp / 100);
+            temp %= 100;
+            const t = Math.floor(temp / 10);
+            temp %= 10;
+            const o = temp;
+
+            document.getElementById('count-100').innerText = h;
+            document.getElementById('count-10').innerText = t;
+            document.getElementById('count-1').innerText = o;
+        }
+
+        function addLog(amount, isPlus) {
+            if (logContainer.querySelector('div.italic')) {
+                logContainer.innerHTML = '';
+            }
+
+            const item = document.createElement('div');
+            item.className = `ledger-item flex justify-between items-center p-4 rounded-xl bg-white/5 border-l-4 ${isPlus ? 'border-emerald-500' : 'border-slate-500'}`;
+            
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            item.innerHTML = `
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-bold opacity-40 tracking-wider uppercase">${isPlus ? 'Asset Inflow' : 'Asset Outflow'}</span>
+                    <span class="text-xs font-semibold text-slate-300">${timeStr}</span>
+                </div>
+                <div class="text-lg font-bold mono ${isPlus ? 'text-emerald-400' : 'text-slate-300'}">
+                    ${isPlus ? '+' : '-'}${amount.toLocaleString()}
+                </div>
+            `;
+
+            logContainer.prepend(item);
+        }
+
+        function resetLedger() {
+            if(confirm("기록을 모두 지우시겠습니까?")) {
+                logContainer.innerHTML = '<div class="text-center py-10 text-slate-600 text-xs italic">Awaiting first transaction...</div>';
+            }
+        }
+
+        function updateBalance(isPlus) {
+            const amount = parseInt(inputField.value);
+            
+            if (isNaN(amount) || amount <= 0) {
+                inputField.classList.add('border-red-500/50');
+                setTimeout(() => inputField.classList.remove('border-red-500/50'), 500);
+                return;
+            }
+
+            if (!isPlus && balance < amount) {
+                showToast("잔액이 부족합니다!");
+                return;
+            }
+
+            balance = isPlus ? balance + amount : balance - amount;
+            
+            // Animate number change slightly
+            totalDisplay.innerText = balance.toLocaleString();
+            updateBills();
+            addLog(amount, isPlus);
+            
+            inputField.value = '';
+            inputField.blur();
+        }
+
+        // Initialize UI
+        updateBills();
+    </script>
+</body>
+</html>
